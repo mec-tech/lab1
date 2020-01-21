@@ -1,6 +1,6 @@
 //
-//modified by:
-//date:
+//modified by:Melanie
+//date:Tuesday Jan 21, 2020
 //
 //3350 Spring 2019 Lab-1
 //This program demonstrates the use of OpenGL and XWindows
@@ -295,8 +295,10 @@ void movement()
 	p->s.center.y += p->velocity.y;
 
 	//check for collision with shapes...
-	//Shape *s;
-
+	Shape *s=&g.box;
+	if(p->s.center.y < (s->center.y + s->height)){
+	p->velocity.y= -p->velocity.y;
+	}
 
 
 
