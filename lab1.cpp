@@ -1,6 +1,6 @@
 //
 //modified by:Melanie
-//date:Tuesday Jan 21, 2020
+//date:Monday Feb 2, 2020
 //
 //3350 Spring 2019 Lab-1
 //This program demonstrates the use of OpenGL and XWindows
@@ -39,8 +39,10 @@ using namespace std;
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <GL/glx.h>
+#include "fonts.h"
 
-const int MAX_PARTICLES = 200;
+const int MAX = 5;
+const int MAX_PARTICLES = 4000;
 const float GRAVITY     = 0.1;
 
 //some structures
@@ -63,7 +65,7 @@ struct Particle {
 class Global {
 public:
 	int xres, yres;
-	Shape box;
+	Shape box[MAX];
 	Particle particle[MAX_PARTICLES];
 	int n;
 	Global();
@@ -123,10 +125,13 @@ Global::Global()
 	xres = 800;
 	yres = 600;
 	//define a box shape
-	box.width = 100;
-	box.height = 10;
-	box.center.x = 120 + 5*65;
-	box.center.y = 500 - 5*60;
+	
+	for (int i=0; i< 5; i++) {
+	box[i].width = 100;
+	box[i].height = 10;
+	box[i].center.x = 120 + i*65;
+	box[i].center.y = 500 - i*60;
+	}
 	n = 0;
 }
 
@@ -211,20 +216,20 @@ void init_opengl(void)
 
 void makeParticle(int x, int y)
 {
-	//Add a particle to the particle system.
-	//
+    	//Add a particle to the particle system.
+	
 	if (g.n >= MAX_PARTICLES)
 		return;
-//	cout << "makeParticle() " << x << " " << y << endl;
-	//set position of particle
+    	//cout << "makeParticle() " << x << " " << y << endl;
+    	//set position of particle
 	Particle *p = &g.particle[g.n];
 	p->s.center.x = x;
 	p->s.center.y = y;
-//	p->velocity.y = -4.0;
-//	p->velocity.y = 1.0;
+    	//p->velocity.y = -4.0;
+    	//p->velocity.y = 1.0;
 	p->velocity.y = ((float)rand() / (float) RAND_MAX) + 0.5;
 	p->velocity.x = ((float)rand() / (float) RAND_MAX) + 0.5;
-//	p->velocity.x =  1.0;
+    	//p->velocity.x =  1.0;
 	++g.n;
 }
 
@@ -248,13 +253,9 @@ void check_mouse(XEvent *e)
 		if (e->xbutton.button==1) {
 			//Left button was pressed.
 			int y = g.yres - e->xbutton.y;
-			makeParticle(e->xbutton.x, y);
-			makeParticle(e->xbutton.x, y);
-			makeParticle(e->xbutton.x, y);
-			makeParticle(e->xbutton.x, y);
-			makeParticle(e->xbutton.x, y);
-			makeParticle(e->xbutton.x, y);
-			makeParticle(e->xbutton.x, y);
+			
+			for (int i = 0; i < 20; i++)
+				makeParticle(e->xbutton.x, y);
 			return;
 		}
 		if (e->xbutton.button==3) {
@@ -268,6 +269,9 @@ void check_mouse(XEvent *e)
 			savex = e->xbutton.x;
 			savey = e->xbutton.y;
 			//Code placed here will execute whenever the mouse moves.
+			int y = g.yres - e->xbutton.y;
+			for(int i=0; i<20; i++)
+			makeParticle(e->xbutton.x, y);
 
 
 		}
@@ -299,53 +303,66 @@ void movement()
 {
 	if (g.n <= 0)
 		return;
-for(int i=0; i<g.n; i++){
-	Particle *p = &g.particle[i];
-	p->velocity.y-= GRAVITY; 
-	
-	p->s.center.x += p->velocity.x;
-	p->s.center.y += p->velocity.y;
+	for (int i=0; i < g.n; i++) {
+		Particle *p = &g.particle[i];
+		p->velocity.y-= GRAVITY; 
 
-	//check for collision with shapes...
-	Shape *s=&g.box;
-	if(p->s.center.y < (s->center.y + s->height)){
-	p->velocity.y= -p->velocity.y;
+		p->s.center.x += p->velocity.x;
+		p->s.center.y += p->velocity.y;
+
+		//an array tocheck for collision with shapes...
+		for (int i = 0; i < MAX; i++) {
+			Shape *s=&g.box[i];
+			if (p->s.center.y < s->center.y + s->height &&
+				p->s.center.x > s->center.x - s->width &&
+				p->s.center.x < s->center.x + s->width && 
+				p->s.center.y > s->center.y - s->height) {
+				//p->velocity.y= -p->velocity.y;//speed
+				p->s.center.y = s->center.y + s->height; 
+				p->velocity.y*= -1.0;
+				p->velocity.y*= 0.5;
+			}
+		}
+
+
+
+		//check for off-screen
+		if (p->s.center.y < 0.0) {
+			//cout << "off screen" << endl;
+			g.particle[i]= g.particle[g.n-1];	
+			//g.n = 0;
+			--g.n;
+		}
 	}
-
-
-
-	//check for off-screen
-	if (p->s.center.y < 0.0) {
-		//cout << "off screen" << endl;
-	g.particle[i]= g.particle[g.n-1];	
-	   // g.n = 0;
-	    --g.n;
-	}
-}
 }
 void render()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 	//Draw shapes...
 	//draw the box
-	Shape *s;
+	
+	Shape *s[MAX];
+	Rect r[MAX];
 	glColor3ub(90,140,90);
-	s = &g.box;
-	glPushMatrix();
-	glTranslatef(s->center.x, s->center.y, s->center.z);
+	//this is an array of boxes
+	for (int i = 0; i < MAX; i++) {
+		s[i] = &g.box[i];
+		glPushMatrix();
+		glTranslatef(s[i]->center.x, s[i]->center.y, s[i]->center.z);
+		float w, h;
+		w = s[i]->width;
+		h = s[i]->height;
+		glBegin(GL_QUADS);
+			glVertex2i(-w, -h);
+			glVertex2i(-w,  h);
+			glVertex2i( w,  h);
+			glVertex2i( w, -h);
+		glEnd();
+		glPopMatrix();
+	}
 	float w, h;
-	w = s->width;
-	h = s->height;
-	glBegin(GL_QUADS);
-		glVertex2i(-w, -h);
-		glVertex2i(-w,  h);
-		glVertex2i( w,  h);
-		glVertex2i( w, -h);
-	glEnd();
-	glPopMatrix();
-	//
 	//Draw particles here
-	for(int i=0; i<g.n; i++){
+	for(int i = 0; i < g.n; i++) {
 		//There is at least one particle to draw.
 		glPushMatrix();
 		glColor3ub(150,160,220);
@@ -359,10 +376,25 @@ void render()
 		glEnd();
 		glPopMatrix();
 	}
-	//
-	//Draw your 2D text here
-
-
+	//an array for the text
+	for (int i = 0; i < MAX; i++) {	
+		//Draw your 2D text here
+		glEnable(GL_TEXTURE_2D);
+		initialize_fonts();
+		r[i].bot = s[i]->center.y - s[i]->height; 
+		r[i].left = s[i]->center.x ;
+		r[i].center = 1;
+		if (i == 0)
+			ggprint8b(&r[i], 16, 0x00ff0000, "Requirements");
+		if (i == 1)
+			ggprint8b(&r[i], 16, 0x00ff0000, "Design");
+		if (i == 2)
+			ggprint8b(&r[i], 16, 0x00ff0000, "Implementation");
+		if (i == 3)
+			ggprint8b(&r[i], 16, 0x00ff0000, "Testing");
+		if (i == 4)
+			ggprint8b(&r[i], 16, 0x00ff0000, "Maintenance");
+	}
 
 
 
